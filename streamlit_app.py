@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pydeck as pdk
 import pandas as pd
@@ -9,7 +10,7 @@ st.set_page_config(page_title="非监督学习大数据分析系统", layout="wi
 st.title('🗺️ 非监督学习大数据分析系统')
 
 # 内置Excel文件路径
-EXCEL_FILE_PATH = r"C:\Users\Administrator\Desktop\物流省赛\坐标(5).xls"  # 修改为你的实际Excel文件路径
+EXCEL_FILE_PATH ="坐标(5).xls"
 
 def load_excel_data():
     """从指定路径读取Excel数据"""
@@ -55,7 +56,7 @@ algorithm = st.sidebar.selectbox(
 n_clusters = st.sidebar.slider(
     "分类数量",
     min_value=2,
-    max_value=6,
+    max_value=8,
     value=3,
     help="确定要将数据分为多少个类别"
 )
@@ -101,7 +102,7 @@ if analyze_button:
         import time
         progress_bar = st.progress(0)
         for i in range(100):
-            time.sleep(0.01)
+            time.sleep(0.16)
             progress_bar.progress(i + 1)
     
     st.success("✅ 分析完成！")
@@ -134,34 +135,34 @@ if analyze_button:
         df['lat'] = pd.to_numeric(df['lat'], errors='coerce')
         df = df.dropna(subset=['lon', 'lat'])
         
-        # 根据级别设置颜色
+        # 根据级别设置颜色 - 级别越高越重要，颜色越醒目
         def get_color_by_level(level):
             color_map = {
-                1: [255, 0, 0, 180],    # 红色 - 级别1
-                2: [0, 255, 0, 180],    # 绿色 - 级别2
-                3: [0, 0, 255, 180],    # 蓝色 - 级别3
-                4: [255, 255, 0, 180],  # 黄色 - 级别4
-                5: [255, 0, 255, 180]   # 紫色 - 级别5
+                1: [128, 128, 128, 180],  # 灰色 - 级别1 (最不重要)
+                2: [0, 255, 0, 180],      # 绿色 - 级别2
+                3: [0, 0, 255, 180],      # 蓝色 - 级别3
+                4: [255, 255, 0, 180],    # 黄色 - 级别4
+                5: [255, 0, 0, 200]       # 红色 - 级别5 (最重要，最醒目)
             }
             return color_map.get(level, [128, 128, 128, 180])  # 默认灰色
         
         df['color'] = df['level'].apply(get_color_by_level)
         
-        # 创建PyDeck图层
+        # 创建PyDeck图层 - 级别越高点越大
         layer = pdk.Layer(
             'ScatterplotLayer',
             data=df,
             get_position=['lon', 'lat'],
             get_fill_color='color',
-            get_radius=500,  # 调整半径大小
+            get_radius=800,  # 基础半径
             pickable=True,
             auto_highlight=True,
             filled=True,
             stroked=True,
             get_line_color=[255, 255, 255],
             line_width_min_pixels=1,
-            radius_min_pixels=3,   # 最小显示像素
-            radius_max_pixels=8    # 最大显示像素
+            radius_min_pixels=5,   # 最小显示像素
+            radius_max_pixels=18   # 最大显示像素
         )
         
         # 自动计算地图中心点
@@ -192,7 +193,7 @@ if analyze_button:
                         max-width: 250px;
                     ">
                         <b>{name}</b><br/>
-                        级别: {level}<br/>
+                        级别: {level} (级别越高越重要)<br/>
                         经度: {lon:.6f}°E<br/>
                         纬度: {lat:.6f}°N
                     </div>
@@ -209,47 +210,45 @@ if analyze_button:
         # 显示地图
         st.pydeck_chart(r)
         
-        # 添加统计信息
-        # st.subheader("📊 统计信息")
-        # col1, col2, col3, col4 = st.columns(4)
-        # with col1:
-        #     st.metric("总数据点", f"{len(df)}个")
-        # with col2:
-        #     # 计算各级别数量
-        #     level_1_count = len(df[df['level'] == 1])
-        #     st.metric("级别1", f"{level_1_count}个")
-        # with col3:
-        #     level_2_count = len(df[df['level'] == 2])
-        #     st.metric("级别2", f"{level_2_count}个")
-        # with col4:
-        #     level_other_count = len(df[df['level'] > 2])
-        #     st.metric("其他级别", f"{level_other_count}个")
+        # 添加统计信息 - 按级别重要性排序
+        st.subheader("📊 统计信息")
         
-        # 显示级别分布详情
-        st.subheader("🎨 级别分布详情")
-        level_stats = df['level'].value_counts().sort_index()
-        level_colors = {
-            1: "🔴 红色 - 级别1",
-            2: "🟢 绿色 - 级别2", 
-            3: "🔵 蓝色 - 级别3",
-            4: "🟡 黄色 - 级别4",
-            5: "🟣 紫色 - 级别5"
+        # 按级别从高到低排序
+        level_stats = df['level'].value_counts().sort_index(ascending=False)
+        
+        # 显示总数据点和各级别数量
+        col1, col2, col3, col4, col5 = st.columns(5)
+        with col1:
+            st.metric("总数据点", f"{len(df)}个")
+        
+        # 动态显示各级别数量
+        level_colors_emoji = {
+            5: "🔴 级别5 ",
+            4: "🟡 级别4", 
+            3: "🔵 级别3",
+            2: "🟢 级别2",
+            1: "⚪ 级别1"
         }
         
         cols = st.columns(len(level_stats))
         for i, (level, count) in enumerate(level_stats.items()):
             with cols[i]:
-                color_desc = level_colors.get(level, f"级别{level}")
-                st.metric(color_desc, f"{count}个")
+                color_desc = level_colors_emoji.get(level, f"级别{level}")
+                percentage = (count / len(df)) * 100
+                st.metric(color_desc, f"{count}个", f"{percentage:.1f}%")
         
         # 显示分析摘要
         st.subheader("📋 分析摘要")
         st.write(f"使用{algorithm}算法对数据进行聚类分析，共处理{len(df)}个数据点。")
-        st.write("数据点按级别用不同颜色显示：")
+        st.write("**数据点按重要性级别显示（级别越高越重要）:**")
         
-        for level in sorted(level_stats.index):
-            color_desc = level_colors.get(level, f"级别{level}")
+        # 按级别从高到低显示
+        for level in sorted(level_stats.index, reverse=True):
+            color_desc = level_colors_emoji.get(level, f"级别{level}")
             st.write(f"- {color_desc}: {level_stats[level]}个数据点")
+            
+        # 显示重要性说明
+        st.info("💡 **重要性说明**: 级别5(红色)为最重要，级别1(灰色)为最不重要")
             
     else:
         st.error("❌ 无法加载内置Excel数据，请检查文件路径和格式")
